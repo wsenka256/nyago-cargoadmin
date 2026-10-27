@@ -27,6 +27,9 @@ jobs:
 
       - name: Build admin website
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Create Android project
         run: npx cap add android
