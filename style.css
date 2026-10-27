@@ -433,3 +433,129 @@ td a { display: inline-block; margin-top: 8px; font-size: .85rem; }
   table { min-width: 1120px; }
   .login-card { padding: 25px 20px; }
 }
+
+
+
+
+
+
+/* Nyago Cargo charcoal and gold dashboard refresh */
+.shell {
+  background: #1f1f1f;
+  color: #f5f5f5;
+}
+
+.topbar {
+  background: #292929;
+  border-bottom: 1px solid #383838;
+}
+
+.content {
+  max-width: 1600px;
+  padding: 30px clamp(16px, 3vw, 42px);
+}
+
+.eyebrow,
+.metrics article > svg,
+td .tracking {
+  color: #f2c14e;
+}
+
+.metrics article,
+.panel {
+  background: #292929;
+  border: 1px solid #383838;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.metrics article strong {
+  color: #ffffff;
+}
+
+.primary,
+button.primary {
+  background: #f2c14e;
+  color: #252525;
+  border-color: #f2c14e;
+}
+
+.primary:hover,
+button.primary:hover {
+  background: #ffd56b;
+  color: #252525;
+}
+
+.quiet,
+button.quiet {
+  background: #292929;
+  border-color: #f2c14e;
+}
+
+.quiet:hover,
+button.quiet:hover {
+  background: #38332a;
+  border-color: #ffd56b;
+}
+
+.table-wrap {
+  background: #242424;
+  border-color: #383838;
+}
+
+thead th {
+  background: #303030;
+  color: #f2c14e;
+  border-color: #454545;
+}
+
+tbody td {
+  border-color: #383838;
+}
+
+tbody tr:hover td {
+  background: #33302a;
+}
+
+.pickup-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 22px 0;
+}
+
+.pickup-cards h3 {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #f2c14e;
+}
+
+.pickup-card {
+  padding: 16px;
+  border: 1px solid #424242;
+  border-radius: 12px;
+  background: #292929;
+  overflow-wrap: anywhere;
+}
+
+.pickup-card strong {
+  color: #f2c14e;
+}
+
+.pickup-card p {
+  margin: 10px 0;
+}
+
+@media (max-width: 640px) {
+  .content {
+    padding: 20px 12px;
+  }
+
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pickup-cards {
+    grid-template-columns: 1fr;
+  }
+}
