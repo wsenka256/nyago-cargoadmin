@@ -11,7 +11,7 @@ import './style.css';
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = url && key ? createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
-const STATUSES = ['Booking Created', 'Received at KSA Hub', 'Customs Cleared (KSA ZATCA)', 'In Transit', 'Arrived at Destination Port/Airport', 'Customs Cleared (East Africa)', 'Out for Delivery / Ready for Pickup', 'Delivered'];
+const STATUSES = ['Booking Created', 'Picked', 'Received at KSA Hub', 'Customs Cleared (KSA ZATCA)', 'In Transit', 'Arrived at Destination Port/Airport', 'Customs Cleared (East Africa)', 'Out for Delivery / Ready for Pickup', 'Delivered'];
 const PAYMENTS = ['Unpaid', 'Paid', 'Pay on Delivery'];
 
 const NAV_ITEMS = [
