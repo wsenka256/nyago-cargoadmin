@@ -37,6 +37,10 @@ function App() {
   const [message, setMessage] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [activePage, setActivePage] = useState('dashboard');
+  const [pickupDrivers, setPickupDrivers] = useState([]);
+  const [pickupAssignments, setPickupAssignments] = useState([]);
+  const [driverSelections, setDriverSelections] = useState({});
+  const [assigningShipment, setAssigningShipment] = useState(null);
 
   const verifyAdmin = useCallback(async (currentSession) => {
     setAuthorized(false);
@@ -75,6 +79,37 @@ function App() {
   }, [authorized]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  const refreshPickupData = useCallback(async () => {
+    if (!supabase || !authorized) return;
+    const [driversResult, assignmentsResult] = await Promise.all([
+      supabase.from('pickup_drivers').select('id,display_name,phone,active').eq('active', true).order('display_name'),
+      supabase.from('shipment_pickup_assignments').select('id,shipment_id,driver_id,pickup_status,picked_at,assigned_at')
+    ]);
+    if (driversResult.error) setMessage('Could not load driver list: ' + driversResult.error.message);
+    else setPickupDrivers(driversResult.data || []);
+    if (assignmentsResult.error) setMessage('Could not load pickup assignments: ' + assignmentsResult.error.message);
+    else setPickupAssignments(assignmentsResult.data || []);
+  }, [authorized]);
+
+  useEffect(() => { refreshPickupData(); }, [refreshPickupData]);
+
+  async function assignPickup(shipment) {
+    const driverId = driverSelections[shipment.id];
+    if (!driverId) { setMessage('Choose a driver before assigning this pickup.'); return; }
+    setAssigningShipment(shipment.id); setMessage('');
+    const existing = pickupAssignments.find(a => a.shipment_id === shipment.id);
+    const payload = { shipment_id: shipment.id, driver_id: driverId, assigned_by: session.user.id, pickup_status: 'Assigned', picked_at: null };
+    const { data, error } = await supabase.from('shipment_pickup_assignments')
+      .upsert(payload, { onConflict: 'shipment_id' }).select('*').single();
+    if (error) setMessage('Pickup assignment failed: ' + error.message);
+    else {
+      setPickupAssignments(prev => [...prev.filter(a => a.shipment_id !== shipment.id), data]);
+      const driver = pickupDrivers.find(d => d.id === driverId);
+      setMessage('Pickup assigned to ' + (driver?.display_name || 'driver') + ' for shipment ' + shipment.tracking_id + '.');
+    }
+    setAssigningShipment(null);
+  }
 
   useEffect(() => {
     if (!supabase || !authorized) return;
@@ -253,6 +288,10 @@ function App() {
             <div className="toolbar"><div className="search"><Search size={18}/><input aria-label="Search shipments" placeholder="Search tracking ID, sender, receiver…" value={search} onChange={e => setSearch(e.target.value)} /></div><select aria-label="Filter by status" value={filter} onChange={e => setFilter(e.target.value)}><option>All</option>{STATUSES.map(s => <option key={s}>{s}</option>)}</select><button className="quiet" onClick={() => { setSearch(''); setFilter('All'); }}><ArrowDownUp size={16}/> Reset</button><span className="count">{visible.length} records</span></div>
             <h2 className="subsection-heading"><MapPin size={18}/> Pickup Addresses</h2>
             <div className="pickup-cards">{visible.map(s => <PickupInfo key={s.id} shipment={s} />)}{visible.length === 0 && <p className="muted">No matching pickup addresses.</p>}</div>
+            <section className="panel" style={{marginBottom:18,padding:16}}>
+              <div className="section-heading"><div><p className="eyebrow">FIELD OPERATIONS</p><h2>Assign pickup driver</h2><p className="muted">Drivers create an account in the Driver Portal first. Assignments appear on their phones.</p></div><button className="secondary" onClick={refreshPickupData}><RefreshCw size={15}/> Refresh drivers</button></div>
+              {pickupDrivers.length === 0 ? <p className="notice">No active driver profiles yet. Ask each driver to create an account in the Driver Portal, then refresh this list. If email confirmation is enabled, they must confirm their account and sign in once.</p> : <div className="pickup-cards">{visible.filter(s => s.pickup_address || s.sender_city).map(s => { const a = pickupAssignments.find(x => x.shipment_id === s.id); const d = pickupDrivers.find(x => x.id === (a?.driver_id || driverSelections[s.id])); return <article className="pickup-card" key={'assign-'+s.id}><strong>{s.tracking_id}</strong><p>{s.sender_name || 'Sender'} · {s.pickup_address || s.sender_city}</p><p className="muted">Assignment: {a ? (a.pickup_status === 'Picked' ? 'Picked' : 'Assigned') + (d ? ' · ' + d.display_name : '') : 'Not assigned'}</p><div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}><select className="status-select" aria-label={'Driver for '+s.tracking_id} value={driverSelections[s.id] || a?.driver_id || ''} onChange={e=>setDriverSelections(prev=>({...prev,[s.id]:e.target.value}))}><option value="">Choose driver</option>{pickupDrivers.map(driver=><option key={driver.id} value={driver.id}>{driver.display_name}{driver.phone?' · '+driver.phone:''}</option>)}</select><button className="primary" disabled={assigningShipment===s.id} onClick={()=>assignPickup(s)}>{assigningShipment===s.id?'Assigning…':a?'Reassign':'Assign pickup'}</button></div></article>; })}</div>}
+            </section>
             <ShipmentTable rows={visible} />
           </section>
         </>}
