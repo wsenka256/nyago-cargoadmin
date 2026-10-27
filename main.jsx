@@ -92,7 +92,38 @@ function App() {
     {message && <div className="notice banner"><AlertCircle size={17}/><span>{message}</span><button onClick={()=>setMessage('')}>Dismiss</button></div>}
     <div className="metrics"><article><span>Total shipments</span><strong>{counts.total}</strong><Package/></article><article><span>In transit</span><strong>{counts.transit}</strong><Truck/></article><article><span>Delivered</span><strong>{counts.delivered}</strong><CheckCircle2/></article><article><span>Unpaid / needs review</span><strong>{counts.attention}</strong><Activity/></article></div>
     <section className="panel"><div className="panel-head"><div><h2>Shipment register</h2><p className="muted">Updates from other authorized sessions appear automatically.</p></div><span className="count">{visible.length} records</span></div><div className="toolbar"><div className="search"><Search size={18}/><input aria-label="Search shipments" placeholder="Search tracking ID, sender, receiver…" value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="Filter by status" value={filter} onChange={e=>setFilter(e.target.value)}><option>All</option>{STATUSES.map(s=><option key={s}>{s}</option>)}</select><button className="quiet" onClick={()=>{setSearch('');setFilter('All')}}><ArrowDownUp size={16}/> Reset</button></div>
-    <div className="table-wrap"><table><thead><tr><th>Tracking / created</th><th>Route & customer</th><th>Shipment</th><th>Pickup location</th><th>Status</th><th>Payment</th></tr></thead><tbody>{visible.map(s=><tr key={s.id}><td><strong className="tracking">{s.tracking_id}</strong><small>{s.created_at ? new Date(s.created_at).toLocaleString() : '—'}</small></td><td><strong>{s.sender_name || '—'}</strong><small>{s.sender_city || 'Saudi Arabia'} → {s.receiver_city || '—'}, {s.receiver_country || ''}</small><small>Receiver: {s.receiver_name || '—'}</small></td><td><strong>{s.cargo_type || '—'}</strong><small>{s.weight_kg ?? '—'} kg · {s.package_count ?? '—'} package(s)</small><small>{s.total_cost_sar == null ? '—' : `${Number(s.total_cost_sar).toLocaleString()} SAR`}</small></td><td>{s.pickup_address ? <><strong>{s.pickup_address}</strong>{s.pickup_instructions && <small>Instructions: {s.pickup_instructions}</small>}{s.pickup_latitude != null && s.pickup_longitude != null && <small>GPS: {Number(s.pickup_latitude).toFixed(6)}, {Number(s.pickup_longitude).toFixed(6)}</small>}<a href={s.pickup_latitude != null && s.pickup_longitude != null ? `https://www.google.com/maps/dir/?api=1&destination=${s.pickup_latitude},${s.pickup_longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.pickup_address)}`} target="_blank" rel="noreferrer">Open in Google Maps ↗</a></> : <small>Not provided on this booking</small>}</td><td><select aria-label={`Status for ${s.tracking_id}`} className="status-select" value={s.current_status || STATUSES[0]} disabled={busyId===s.id} onChange={e=>changeShipment(s,{current_status:e.target.value},`Status changed to ${e.target.value}`)}>{STATUSES.map(st=><option key={st}>{st}</option>)}</select></td><td><select aria-label={`Payment for ${s.tracking_id}`} className="status-select" value={s.payment_status || 'Unpaid'} disabled={busyId===s.id} onChange={e=>changeShipment(s,{payment_status:e.target.value},`Payment status changed to ${e.target.value}`)}>{PAYMENTS.map(p=><option key={p}>{p}</option>)}</select></td></tr>)}</tbody></table>{visible.length===0 && <div className="empty"><Package size={28}/><strong>No shipments found</strong><span>Try another search or clear the status filter.</span></div>}</div></section><p className="footer-note"><ShieldCheck size={15}/> Shipment data is available only through Supabase authenticated sessions and database RLS. Do not expose service-role credentials in this app.</p></main></div>;
+ <div className="pickup-cards">
+  <h3>Pickup Addresses</h3>
+  {visible.map(s => (
+    <article className="pickup-card" key={`pickup-${s.id}`}>
+      <strong>{s.tracking_id || "Shipment"}</strong>
+      <p>{s.pickup_address || "Pickup address not provided"}</p>
+      {s.pickup_instructions && (
+        <p>Instructions: {s.pickup_instructions}</p>
+      )}
+      {s.pickup_latitude != null && s.pickup_longitude != null && (
+        <p>
+          GPS: {Number(s.pickup_latitude).toFixed(6)},{" "}
+          {Number(s.pickup_longitude).toFixed(6)}
+        </p>
+      )}
+      {s.pickup_address && (
+        <a
+          href={
+            s.pickup_latitude != null && s.pickup_longitude != null
+              ? `https://www.google.com/maps/dir/?api=1&destination=${s.pickup_latitude},${s.pickup_longitude}`
+              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.pickup_address)}`
+          }
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open in Google Maps ↗
+        </a>
+      )}
+    </article>
+  ))}
+</div>
+      <div className="table-wrap"><table><thead><tr><th>Tracking / created</th><th>Route & customer</th><th>Shipment</th><th>Pickup location</th><th>Status</th><th>Payment</th></tr></thead><tbody>{visible.map(s=><tr key={s.id}><td><strong className="tracking">{s.tracking_id}</strong><small>{s.created_at ? new Date(s.created_at).toLocaleString() : '—'}</small></td><td><strong>{s.sender_name || '—'}</strong><small>{s.sender_city || 'Saudi Arabia'} → {s.receiver_city || '—'}, {s.receiver_country || ''}</small><small>Receiver: {s.receiver_name || '—'}</small></td><td><strong>{s.cargo_type || '—'}</strong><small>{s.weight_kg ?? '—'} kg · {s.package_count ?? '—'} package(s)</small><small>{s.total_cost_sar == null ? '—' : `${Number(s.total_cost_sar).toLocaleString()} SAR`}</small></td><td>{s.pickup_address ? <><strong>{s.pickup_address}</strong>{s.pickup_instructions && <small>Instructions: {s.pickup_instructions}</small>}{s.pickup_latitude != null && s.pickup_longitude != null && <small>GPS: {Number(s.pickup_latitude).toFixed(6)}, {Number(s.pickup_longitude).toFixed(6)}</small>}<a href={s.pickup_latitude != null && s.pickup_longitude != null ? `https://www.google.com/maps/dir/?api=1&destination=${s.pickup_latitude},${s.pickup_longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.pickup_address)}`} target="_blank" rel="noreferrer">Open in Google Maps ↗</a></> : <small>Not provided on this booking</small>}</td><td><select aria-label={`Status for ${s.tracking_id}`} className="status-select" value={s.current_status || STATUSES[0]} disabled={busyId===s.id} onChange={e=>changeShipment(s,{current_status:e.target.value},`Status changed to ${e.target.value}`)}>{STATUSES.map(st=><option key={st}>{st}</option>)}</select></td><td><select aria-label={`Payment for ${s.tracking_id}`} className="status-select" value={s.payment_status || 'Unpaid'} disabled={busyId===s.id} onChange={e=>changeShipment(s,{payment_status:e.target.value},`Payment status changed to ${e.target.value}`)}>{PAYMENTS.map(p=><option key={p}>{p}</option>)}</select></td></tr>)}</tbody></table>{visible.length===0 && <div className="empty"><Package size={28}/><strong>No shipments found</strong><span>Try another search or clear the status filter.</span></div>}</div></section><p className="footer-note"><ShieldCheck size={15}/> Shipment data is available only through Supabase authenticated sessions and database RLS. Do not expose service-role credentials in this app.</p></main></div>;
 }
 
 createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>);
