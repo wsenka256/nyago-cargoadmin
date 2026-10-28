@@ -55,7 +55,7 @@ jobs:
             }
         run: |
           if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release-signing.keystore
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > android/release-signing.keystore
             python3 -c 'import os; from pathlib import Path; p=Path("android/app/build.gradle"); p.write_text(p.read_text()+chr(10)+os.environ["GRADLE_APPEND"]+chr(10))'
             echo "BUILD_VARIANT=release" >> "$GITHUB_ENV"
           else
