@@ -41,6 +41,9 @@ function App() {
   const [pickupAssignments, setPickupAssignments] = useState([]);
   const [driverSelections, setDriverSelections] = useState({});
   const [assigningShipment, setAssigningShipment] = useState(null);
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiAnswer, setAiAnswer] = useState('');
+  const [aiDraftAction, setAiDraftAction] = useState(null);
 
   const verifyAdmin = useCallback(async (currentSession) => {
     setAuthorized(false);
@@ -131,6 +134,36 @@ function App() {
     delivered: shipments.filter(s => s.current_status === 'Delivered').length,
     attention: shipments.filter(s => ['Booking Created', 'Unpaid'].includes(s.current_status) || s.payment_status === 'Unpaid').length
   }), [shipments]);
+
+  const aiInsights = useMemo(() => ({
+    pendingPickups: shipments.filter(s => s.current_status === 'Booking Created' && !pickupAssignments.some(a => a.shipment_id === s.id)),
+    picked: shipments.filter(s => s.current_status === 'Picked'),
+    inTransit: shipments.filter(s => s.current_status === 'In Transit'),
+    unpaid: shipments.filter(s => s.payment_status === 'Unpaid'),
+    undelivered: shipments.filter(s => s.current_status !== 'Delivered'),
+  }), [shipments, pickupAssignments]);
+
+  function askAdminAssistant(e) {
+    e.preventDefault();
+    const q = aiQuestion.trim().toLowerCase();
+    if (!q) return;
+    if (/pending pickup|unassigned|pickup/.test(q)) {
+      const rows = aiInsights.pendingPickups.slice(0, 8);
+      setAiAnswer(rows.length
+        ? `I found ${aiInsights.pendingPickups.length} booking(s) without a pickup assignment. ${rows.map(s => `${s.tracking_id} — ${s.sender_city || 'origin not recorded'} — ${s.receiver_city || 'destination not recorded'}`).join('; ')}. Review each booking and approve any driver assignment on the Pickups page.`
+        : 'No bookings currently match the rule for an unassigned pickup.');
+    } else if (/unpaid|payment|finance|revenue|paid/.test(q)) {
+      setAiAnswer(`Current records: ${aiInsights.unpaid.length} unpaid shipment(s), total marked unpaid value ${finance.unpaid.toLocaleString()} SAR; ${shipments.filter(s => s.payment_status === 'Paid').length} paid shipment(s), total marked paid value ${finance.paid.toLocaleString()} SAR. These figures reflect the current database records, not independently verified payments.`);
+    } else if (/delay|late|delivery|undelivered|status|report|summary|insight/.test(q)) {
+      setAiAnswer(`Operations summary: ${shipments.length} shipment(s) loaded; ${aiInsights.picked.length} picked; ${aiInsights.inTransit.length} in transit; ${aiInsights.undelivered.length} not yet marked delivered; ${aiInsights.pendingPickups.length} bookings without a pickup assignment; ${aiInsights.unpaid.length} unpaid. This is a rules-based summary of current records; it does not predict delivery delays.`);
+    } else {
+      const found = shipments.filter(s => [s.tracking_id,s.sender_name,s.receiver_name,s.sender_city,s.receiver_city,s.current_status].some(v => String(v || '').toLowerCase().includes(q))).slice(0, 8);
+      setAiAnswer(found.length
+        ? `Matching shipments (${found.length} shown): ${found.map(s => `${s.tracking_id}: ${s.current_status || 'status unknown'}, ${s.sender_city || 'origin unknown'} → ${s.receiver_city || 'destination unknown'} (${s.receiver_country || 'country unknown'})`).join('; ')}. Open Shipments to review records and make any changes through the normal admin controls.`
+        : 'I could not find a matching shipment or supported question. Try asking about pending pickups, unpaid payments, operations summary, or enter a tracking ID, sender, receiver, or city.');
+    }
+    setAiDraftAction(null);
+  }
 
   const finance = useMemo(() => {
     const paid = shipments.filter(s => s.payment_status === 'Paid').reduce((sum, s) => sum + (Number(s.total_cost_sar) || 0), 0);
@@ -302,11 +335,48 @@ function App() {
           <section className="dashboard-section"><h2>Shipment payment records</h2><p className="muted">Use the payment selector on the Shipments page to update a record. This app does not yet generate invoices or process payments.</p><button className="primary" onClick={() => goTo('shipments')}>Manage shipment payments</button></section>
         </>}
 
-        {['freight', 'ship-now', 'ai-tools', 'settings', 'help'].includes(activePage) && <>
+        {activePage === 'ai-tools' && <>
+          <div className="dashboard-heading"><div><p className="eyebrow">OPERATIONS INTELLIGENCE</p><h1>AI Admin Assistant</h1><p className="muted">Free, rules-based assistance using the shipment and pickup data already loaded for this authorized admin session. No external AI provider or paid API is used.</p></div></div>
+          <div className="metrics">
+            <article><span>Unassigned pickups</span><strong>{aiInsights.pendingPickups.length}</strong><Truck/><small>Bookings not yet assigned to a driver</small></article>
+            <article><span>In transit</span><strong>{aiInsights.inTransit.length}</strong><Activity/><small>Current shipment status</small></article>
+            <article><span>Unpaid shipments</span><strong>{aiInsights.unpaid.length}</strong><CreditCard/><small>Based on payment_status</small></article>
+            <article><span>Not delivered</span><strong>{aiInsights.undelivered.length}</strong><Package/><small>Includes all non-delivered statuses</small></article>
+          </div>
+          <section className="dashboard-section">
+            <h2>Ask about cargo operations</h2>
+            <p className="muted">Try “show pending pickups”, “unpaid payments”, “operations summary”, or search by tracking code, sender, receiver, or city.</p>
+            <form onSubmit={askAdminAssistant} style={{display:'grid',gap:12}}>
+              <label htmlFor="ai-admin-question">Your question</label>
+              <textarea id="ai-admin-question" rows={3} value={aiQuestion} onChange={e=>setAiQuestion(e.target.value)} placeholder="e.g. Which bookings need a pickup driver?" style={{width:'100%',boxSizing:'border-box',padding:12,borderRadius:12,background:'var(--input-bg, #0b1220)',color:'inherit',border:'1px solid #334155'}}/>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                <button className="primary" type="submit">Analyze records</button>
+                <button className="quiet" type="button" onClick={()=>{setAiQuestion('Show pending pickups');setAiAnswer('');}}>Pending pickups</button>
+                <button className="quiet" type="button" onClick={()=>{setAiQuestion('Give me an operations summary');setAiAnswer('');}}>Operations summary</button>
+                <button className="quiet" type="button" onClick={()=>{setAiQuestion('Show unpaid payments');setAiAnswer('');}}>Unpaid payments</button>
+              </div>
+            </form>
+            {aiAnswer && <div className="notice" role="status" style={{marginTop:16,whiteSpace:'pre-wrap',lineHeight:1.6}}><WandSparkles size={18}/><span>{aiAnswer}</span></div>}
+          </section>
+          <section className="dashboard-section">
+            <h2>AI-assisted actions — approval required</h2>
+            <p className="muted">The assistant does not make database changes. Select a suggestion to review it, then use the existing authorized admin workflow to approve and perform the action.</p>
+            <div className="pickup-cards">
+              <article className="pickup-card"><strong>Review unassigned pickups</strong><p>{aiInsights.pendingPickups.length} booking(s) may need driver assignment.</p><button className="primary" onClick={()=>goTo('shipments')}>Review shipments and approve assignments</button></article>
+              <article className="pickup-card"><strong>Review unpaid shipments</strong><p>{aiInsights.unpaid.length} shipment(s) are marked unpaid. Verify payment before changing any status.</p><button className="primary" onClick={()=>goTo('finance')}>Review finance records</button></article>
+            </div>
+          </section>
+          <section className="dashboard-section">
+            <h2>Limitations and security</h2>
+            <p className="muted">This first version is a no-cost rules-based assistant, not a generative language model. It uses only records available to the signed-in, allowlisted admin; database RLS remains in force. It does not change shipment status, assign drivers, verify payments, or predict delays.</p>
+          </section>
+        </>}
+
+        {['freight', 'ship-now', 'settings', 'help'].includes(activePage) && <>
           <div className="dashboard-heading"><div><p className="eyebrow">NYAGO CARGO</p><h1>{NAV_ITEMS.find(n => n.id === activePage)?.label}</h1><p className="muted">This section is reserved for the next implementation stage.</p></div></div>
           <section className="dashboard-section feature-notice">
             <ShieldCheck size={30}/>
-            <h2>{activePage === 'freight' ? 'Freight Explorer is not connected yet' : activePage === 'ship-now' ? 'Booking and pay-later workflow is not connected yet' : activePage === 'ai-tools' ? 'AI tools are not configured yet' : activePage === 'settings' ? 'Admin settings' : 'Help Center'}</h2>
+            <h2>{activePage === 'freight' ? 'Freight Explorer is not connected yet' : activePage === 'ship-now' ? 'Booking and pay-later workflow is not connected yet' : activePage === 'settings' ? 'Admin settings' : 'Help Center'}</h2>
             <p className="muted">{activePage === 'settings' ? 'Account access is currently managed through Supabase Auth and the admin_users allowlist.' : activePage === 'help' ? 'For now, use the Shipments page to review bookings, pickup addresses, and status updates.' : 'This navigation item is visible for the planned dashboard layout, but its business workflow has not been implemented. Existing shipment operations remain available.'}</p>
             <button className="primary" onClick={() => goTo('shipments')}>Go to Shipments</button>
           </section>
