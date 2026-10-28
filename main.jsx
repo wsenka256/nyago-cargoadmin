@@ -26,6 +26,8 @@ const NAV_ITEMS = [
 ];
 
 function App() {
+  const [language, setLanguage] = useState(() => { try { return localStorage.getItem('nyago-admin-language') || 'en'; } catch { return 'en'; } });
+  useEffect(() => { try { localStorage.setItem('nyago-admin-language', language); } catch {} document.documentElement.lang = language === 'ar' ? 'ar' : 'en'; document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'; }, [language]);
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -259,10 +261,11 @@ function App() {
   }
 
   if (!supabase) return <main className="center"><section className="login-card"><ShieldCheck size={36}/><h1>Nyago Cargo Admin</h1><p>Set up the environment before running the admin app.</p><code>VITE_SUPABASE_URL<br/>VITE_SUPABASE_ANON_KEY</code></section></main>;
-  if (!session || !authorized) return <main className="center"><form className="login-card" onSubmit={login}><div className="brand-icon"><Truck size={26}/></div><p className="eyebrow">OPERATIONS CONSOLE</p><h1>Nyago Cargo Admin</h1><p className="muted">Sign in with an authorized administrator account.</p><label>Email address<input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></label><label>Password<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label><button className="primary" type="submit">Sign in securely</button>{message && <p className="notice"><AlertCircle size={16}/>{message}</p>}<p className="small muted">Access is verified against the <code>admin_users</code> allowlist. Registration is intentionally disabled.</p></form></main>;
+  if (!session || !authorized) return <main className="center" dir={language === 'ar' ? 'rtl' : 'ltr'}><div className="language-toggle"><button type="button" onClick={() => setLanguage('en')}>English</button><button type="button" onClick={() => setLanguage('ar')}>العربية</button></div><form className="login-card" onSubmit={login}><div className="brand-icon"><Truck size={26}/></div><p className="eyebrow">OPERATIONS CONSOLE</p><h1>Nyago Cargo Admin</h1><p className="muted">Sign in with an authorized administrator account.</p><label>Email address<input type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required /></label><label>Password<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></label><button className="primary" type="submit">Sign in securely</button>{message && <p className="notice"><AlertCircle size={16}/>{message}</p>}<p className="small muted">Access is verified against the <code>admin_users</code> allowlist. Registration is intentionally disabled.</p></form></main>;
 
   return (
-    <div className="shell dashboard-layout">
+    <div className="shell dashboard-layout" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      <div className="language-toggle dashboard-language"><button type="button" onClick={() => setLanguage('en')}>English</button><button type="button" onClick={() => setLanguage('ar')}>العربية</button></div>
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-icon"><Truck size={24}/></div>
@@ -272,7 +275,7 @@ function App() {
         <nav aria-label="Main navigation">
           {NAV_ITEMS.map(item => {
             const Icon = item.icon;
-            return <button key={item.id} type="button" className={activePage === item.id ? 'active' : ''} onClick={() => goTo(item.id)}><Icon size={18}/><span>{item.label}</span></button>;
+            return <button key={item.id} type="button" className={activePage === item.id ? 'active' : ''} onClick={() => goTo(item.id)}><Icon size={18}/><span>{language === 'ar' ? ({ dashboard: 'لوحة التحكم', shipments: 'الشحنات', freight: 'استكشاف الشحن', finance: 'المالية', 'ship-now': 'اشحن الآن وادفع لاحقًا', 'ai-tools': 'أدوات الذكاء الاصطناعي', settings: 'الإعدادات', help: 'مركز المساعدة' }[item.id] || item.label) : item.label}</span></button>;
           })}
         </nav>
         <div className="sidebar-bottom">
