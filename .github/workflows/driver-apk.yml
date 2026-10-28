@@ -1,8 +1,10 @@
 name: Build Nyago Cargo Driver APK
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,12 +30,64 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
+      - name: Configure release signing when signing secrets are available
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release-signing.keystore
+            cat >> android/app/build.gradle <<'GRADLE'
+
+            android {
+              signingConfigs {
+                release {
+                  storeFile file("../release-signing.keystore")
+                  storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                  keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                  keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                }
+              }
+              buildTypes {
+                release {
+                  signingConfig signingConfigs.release
+                }
+              }
+            }
+            GRADLE
+            echo "BUILD_VARIANT=release" >> "$GITHUB_ENV"
+          else
+            echo "BUILD_VARIANT=debug" >> "$GITHUB_ENV"
+            echo "Release signing secrets are not configured; building a debug APK for testing."
+          fi
+      - name: Build signed release APK
+        if: env.BUILD_VARIANT == 'release'
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease
       - name: Build debug APK
+        if: env.BUILD_VARIANT != 'release'
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
-      - uses: actions/upload-artifact@v4
+      - name: Upload driver release APK
+        if: env.BUILD_VARIANT == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nyago-cargo-driver-release-apk
+          path: driver-app/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+      - name: Upload driver debug APK
+        if: env.BUILD_VARIANT != 'release'
+        uses: actions/upload-artifact@v4
         with:
           name: nyago-cargo-driver-apk
           path: driver-app/android/app/build/outputs/apk/debug/app-debug.apk
