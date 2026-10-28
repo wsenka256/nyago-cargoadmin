@@ -86,7 +86,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view nyago-cargo-driver --repo ${{ github.repository }} >/dev/null 2>&1 || gh release create nyago-cargo-driver --repo ${{ github.repository }} --title "Nyago Cargo Driver APK" --notes "Latest direct APK download for the Nyago Cargo driver app."
-          gh release upload nyago-cargo-driver "driver-app/android/app/build/outputs/apk/release/app-release.apk#nyago-cargo-driver.apk" --repo ${{ github.repository }} --clobber
+          gh release upload nyago-cargo-driver "android/app/build/outputs/apk/release/app-release.apk#nyago-cargo-driver.apk" --repo ${{ github.repository }} --clobber
 
       - name: Upload driver release APK
         if: env.BUILD_VARIANT == 'release'
