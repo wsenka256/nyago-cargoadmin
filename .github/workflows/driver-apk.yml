@@ -2,10 +2,7 @@ name: Build Nyago Cargo Driver APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, feature/nyago-driver-pickup-app]
-    paths:
-      - 'driver-app/**'
-      - '.github/workflows/driver-apk.yml'
+    branches: [main]
 jobs:
   build:
     runs-on: ubuntu-latest
