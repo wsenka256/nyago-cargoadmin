@@ -36,11 +36,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
-            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release-signing.keystore
-            cat >> android/app/build.gradle <<'GRADLE'
-
+          GRADLE_APPEND: |
             android {
               signingConfigs {
                 release {
@@ -56,7 +52,10 @@ jobs:
                 }
               }
             }
-            GRADLE
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release-signing.keystore
+            python3 -c 'import os; from pathlib import Path; p=Path("android/app/build.gradle"); p.write_text(p.read_text()+"\\n"+os.environ["GRADLE_APPEND"]+"\\n")'
             echo "BUILD_VARIANT=release" >> "$GITHUB_ENV"
           else
             echo "BUILD_VARIANT=debug" >> "$GITHUB_ENV"
