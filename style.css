@@ -763,6 +763,3 @@ tbody tr:hover td {
 }
 
 }
-
-
-.language-toggle{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.language-toggle button{padding:7px 10px;font-size:12px;font-weight:800;border-radius:9px;border:1px solid #304158;background:#0b1829;color:#e7edf7}.language-toggle button:hover{border-color:#f5bd4b}.dashboard-language{justify-content:flex-end;margin:0 0 10px}.center .language-toggle{position:absolute;top:18px;right:18px}.dashboard-layout{position:relative}html[dir='rtl'] body{direction:rtl}html[dir='rtl'] .sidebar{text-align:right}html[dir='rtl'] .dashboard-topbar{flex-direction:row-reverse}@media(max-width:767px){.dashboard-language{justify-content:center}.center .language-toggle{top:10px;right:10px}}
