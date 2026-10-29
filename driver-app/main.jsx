@@ -59,7 +59,12 @@ function App() {
   useEffect(() => {
     if (!supabase || !session?.user) return;
     const channel = supabase.channel('driver-pickups-' + session.user.id)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipment_pickup_assignments', filter: 'driver_id=eq.' + session.user.id }, () => loadAssignments())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipment_pickup_assignments', filter: 'driver_id=eq.' + session.user.id }, (payload) => {
+        loadAssignments();
+        if (payload.eventType === 'INSERT') setMessage('New pickup assignment received.');
+        else if (payload.eventType === 'UPDATE' && payload.new?.pickup_status === 'Picked') setMessage('Pickup confirmation synchronized.');
+        else if (payload.eventType === 'DELETE') setMessage('A pickup assignment was removed.');
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [session?.user?.id, loadAssignments]);
