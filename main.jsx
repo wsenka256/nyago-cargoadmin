@@ -117,10 +117,21 @@ function App() {
   useEffect(() => {
     if (!supabase || !authorized) return;
     const channel = supabase.channel(`admin-shipments-${session?.user?.id || 'session'}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, () => refresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipments' }, (payload) => {
+        refresh();
+        if (payload.eventType === 'INSERT') setMessage(`New shipment booking received: ${payload.new?.tracking_id || 'New shipment'}.`);
+        else if (payload.eventType === 'UPDATE' && payload.old?.current_status !== payload.new?.current_status) setMessage(`Shipment ${payload.new?.tracking_id || ''} status changed to ${payload.new?.current_status || 'updated'}.`);
+      })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [authorized, session?.user?.id, refresh]);
+    const pickupChannel = supabase.channel(`admin-pickups-${session?.user?.id || 'session'}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipment_pickup_assignments' }, (payload) => {
+        refreshPickupData();
+        if (payload.eventType === 'INSERT') setMessage('A pickup assignment was created.');
+        else if (payload.eventType === 'UPDATE') setMessage('A pickup assignment was updated.');
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); supabase.removeChannel(pickupChannel); };
+  }, [authorized, session?.user?.id, refresh, refreshPickupData]);
 
   const visible = useMemo(() => shipments.filter(s => {
     const q = search.trim().toLowerCase();
