@@ -32,6 +32,22 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       - name: Create Android project
         run: npx cap add android
+      - name: Configure Firebase for Android push notifications
+        env:
+          FIREBASE_GOOGLE_SERVICES_JSON: ${{ secrets.FIREBASE_GOOGLE_SERVICES_JSON }}
+        run: |
+          test -n "$FIREBASE_GOOGLE_SERVICES_JSON" || (echo "::error::Missing GitHub Actions secret FIREBASE_GOOGLE_SERVICES_JSON"; exit 1)
+          mkdir -p android/app
+          printf '%s' "$FIREBASE_GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("android/app/google-services.json").read_text())
+          packages = {client.get("client_info", {}).get("android_client_info", {}).get("package_name") for client in data.get("client", [])}
+          if "com.nyagocargo.admin" not in packages:
+              raise SystemExit("Firebase config does not include com.nyagocargo.admin")
+          print("Firebase configuration verified for admin Android package.")
+          PY
       - name: Sync Android project
         run: npx cap sync android
       - name: Configure release signing when signing secrets are available
