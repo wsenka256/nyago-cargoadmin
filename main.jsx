@@ -266,7 +266,23 @@ function App() {
     if (error) setMessage(`Update failed: ${error.message}`);
     else {
       setShipments(prev => prev.map(x => x.id === s.id ? data : x));
-      setMessage(`Shipment ${s.tracking_id} updated.`);
+      let notificationMessage = '';
+      if (changes.current_status && changes.current_status !== s.current_status) {
+        const { data: pushData, error: pushError } = await supabase.functions.invoke('send-push-notification', {
+          body: {
+            recipient_role: 'customer',
+            shipment_id: s.id,
+            title: 'Nyago Cargo — Shipment Update',
+            body: `Shipment ${s.tracking_id} status: ${changes.current_status}`
+          }
+        });
+        if (pushError || pushData?.error || !pushData?.sent) {
+          notificationMessage = ' Status saved; push not delivered' + (pushData?.error ? ': ' + pushData.error : pushError ? ': ' + pushError.message : '.');
+        } else {
+          notificationMessage = ` Customer notification accepted by Firebase (${pushData.sent} device).`;
+        }
+      }
+      setMessage(`Shipment ${s.tracking_id} updated.` + notificationMessage);
     }
     setBusyId(null);
   }
