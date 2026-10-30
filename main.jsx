@@ -70,6 +70,7 @@ function AdminPushNotificationSetup() {
 }
 
 const STATUSES = ['Booking Created', 'Picked', 'Received at KSA Hub', 'Customs Cleared (KSA ZATCA)', 'In Transit', 'Arrived at Destination Port/Airport', 'Customs Cleared (East Africa)', 'Out for Delivery / Ready for Pickup', 'Delivered'];
+const PAYMENTS = ['Paid', 'Unpaid', 'Pay on Delivery'];
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
