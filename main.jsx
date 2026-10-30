@@ -271,6 +271,30 @@ function App() {
     setBusyId(null);
   }
 
+  async function sendCustomerTestNotification() {
+    if (!supabase || !session?.user?.id || testingNotification) return;
+    setTestingNotification(true);
+    setMessage('Sending a test notification to the most recently active Customer app…');
+    try {
+      const { data, error } = await supabase.functions.invoke('send-push-notification', {
+        body: {
+          recipient_role: 'customer',
+          title: 'Nyago Cargo — Customer Test',
+          body: 'Your Nyago Cargo Customer app is successfully receiving push notifications.'
+        }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.sent) throw new Error(data?.message || 'No Customer device accepted the notification.');
+      setMessage(`Customer test notification accepted by Firebase (${data.sent} device). No shipment was changed.`);
+    } catch (error) {
+      console.error('Customer test notification failed:', error);
+      setMessage('Customer test notification failed: ' + (error?.message || 'Unknown error'));
+    } finally {
+      setTestingNotification(false);
+    }
+  }
+
   async function sendTestNotification() {
     if (!supabase || !session?.user?.id || testingNotification) return;
     setTestingNotification(true);
@@ -401,6 +425,7 @@ function App() {
               <button onClick={() => { goTo('shipments'); setSearch(''); setFilter('All'); }}><Search size={17}/> Track Shipment</button>
               <button onClick={() => goTo('finance')}><FileText size={17}/> View Finance</button>
               <button onClick={sendTestNotification} disabled={testingNotification}><Activity size={17}/>{testingNotification ? 'Sending test…' : 'Test push notification'}</button>
+              <button onClick={sendCustomerTestNotification} disabled={testingNotification}><Activity size={17}/>{testingNotification ? 'Sending test…' : 'Test Customer notification'}</button>
             </div>
           </section>
           <section className="dashboard-section">
