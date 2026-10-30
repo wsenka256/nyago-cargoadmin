@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createClient } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 import {
   Activity, AlertCircle, ArrowDownUp, CheckCircle2, CircleHelp, Compass,
   CreditCard, LayoutDashboard, LogOut, Package, RefreshCw, Search,
@@ -11,8 +13,63 @@ import './style.css';
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = url && key ? createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
+
+function AdminPushNotificationSetup() {
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !supabase) return undefined;
+    let active = true;
+    let registrationListener;
+    let errorListener;
+    let authSubscription;
+
+    const requestAndRegister = async (userId) => {
+      if (!active || !userId) return;
+      try {
+        let permission = await PushNotifications.checkPermissions();
+        if (permission.receive !== 'granted') permission = await PushNotifications.requestPermissions();
+        if (active && permission.receive === 'granted') await PushNotifications.register();
+      } catch (error) {
+        console.error('Admin push registration failed:', error);
+      }
+    };
+
+    const initialize = async () => {
+      registrationListener = await PushNotifications.addListener('registration', async ({ value }) => {
+        if (!active || !value) return;
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) return;
+        const { error } = await supabase.from('push_notification_tokens').upsert({
+          user_id: user.id,
+          token: value,
+          platform: 'android',
+          app_role: 'admin',
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'token' });
+        if (error) console.error('Could not save admin push token:', error.message);
+      });
+      errorListener = await PushNotifications.addListener('registrationError', (error) => {
+        console.error('Admin native push registration error:', error);
+      });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) await requestAndRegister(session.user.id);
+      const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+        if (nextSession?.user?.id) void requestAndRegister(nextSession.user.id);
+      });
+      authSubscription = data.subscription;
+    };
+
+    void initialize();
+    return () => {
+      active = false;
+      authSubscription?.unsubscribe();
+      registrationListener?.remove();
+      errorListener?.remove();
+    };
+  }, []);
+  return null;
+}
+
 const STATUSES = ['Booking Created', 'Picked', 'Received at KSA Hub', 'Customs Cleared (KSA ZATCA)', 'In Transit', 'Arrived at Destination Port/Airport', 'Customs Cleared (East Africa)', 'Out for Delivery / Ready for Pickup', 'Delivered'];
-const PAYMENTS = ['Unpaid', 'Paid', 'Pay on Delivery'];
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
