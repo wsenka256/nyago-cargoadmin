@@ -456,6 +456,6 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>);
+createRoot(document.getElementById('root')).render(<React.StrictMode><><AdminPushNotificationSetup /><App /></></React.StrictMode>);
 
 // Production sync: retain the pickup-driver assignment workflow on the main branch.
