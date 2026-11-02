@@ -88,6 +88,26 @@ function App() {
     finally { setBusy(''); }
   }
 
+  async function updateWeight(a) {
+    const s = a?.shipments;
+    if (!s?.id) return;
+    const raw = window.prompt('Enter the measured shipment weight in kg:', String(s.weight_kg ?? ''));
+    if (raw === null) return;
+    const weight = Number(raw);
+    if (!Number.isFinite(weight) || weight <= 0) { setMessage('Enter a valid weight greater than zero.'); return; }
+    const reason = window.prompt('Reason for weight correction (required):', 'Physical weighing at pickup');
+    if (!reason || !reason.trim()) { setMessage('A reason is required.'); return; }
+    setBusy(a.id); setMessage('');
+    try {
+      const { data, error } = await supabase.rpc('update_shipment_weight', { p_shipment_id: s.id, p_new_weight_kg: weight, p_reason: reason.trim() });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.message || 'Weight update failed.');
+      setMessage('Measured weight and charges updated.');
+      await loadAssignments();
+    } catch (e) { setMessage(e.message || 'Weight update failed.'); }
+    finally { setBusy(''); }
+  }
+
   async function confirmPickup(a) {
     if (!supabase || !a?.id || a.pickup_status === 'Picked') return;
     if (!window.confirm('Confirm that you have physically collected shipment ' + (a.shipments?.tracking_id || '') + '?')) return;
@@ -118,7 +138,7 @@ function App() {
     <div className="section-head"><h2>Assigned shipments</h2><button className="icon-button" onClick={loadAssignments} disabled={loading} aria-label="Refresh assignments"><RefreshCw size={18}/></button></div>
     {loading&&<p className="muted">Loading assignments…</p>}
     {!loading && assignments.length===0 && <section className="empty"><Package size={30}/><h3>No pickups assigned yet</h3><p>Your admin will assign shipments here when pickup is ready.</p></section>}
-    <div className="cards">{assignments.map(a=>{const s=a.shipments||{};const picked=a.pickup_status==='Picked';const coords=s.pickup_latitude!=null&&s.pickup_longitude!=null;const maps=coords?'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(s.pickup_latitude+','+s.pickup_longitude):'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(s.pickup_address||s.sender_city||'');return <article className="task-card" key={a.id}><div className="task-title"><div><span className="tracking">{s.tracking_id||'Shipment'}</span><h3>{s.sender_name||'Sender'}</h3></div><span className={'status '+(picked?'done':'pending')}>{picked?'Picked':'Assigned'}</span></div><div className="detail"><MapPin size={18}/><div><strong>Pickup location</strong><p>{s.pickup_address||s.sender_city||'Pickup address not provided'}</p>{s.pickup_instructions&&<p className="instructions">{s.pickup_instructions}</p>}</div></div>{s.sender_phone&&<a className="detail link-detail" href={'tel:'+s.sender_phone}><Phone size={18}/><div><strong>Contact sender</strong><p>{s.sender_phone}</p></div></a>}<div className="meta"><span>{s.cargo_type||'Cargo'}</span><span>{s.package_count||1} package(s)</span>{s.weight_kg!=null&&<span>{s.weight_kg} kg</span>}</div><div className="actions"><a className="secondary" href={maps} target="_blank" rel="noreferrer"><Navigation size={17}/> Navigate</a><button className="primary" disabled={picked||busy===a.id} onClick={()=>confirmPickup(a)}>{picked?<><CheckCircle2 size={17}/> Pickup confirmed</>:busy===a.id?'Confirming…':'Confirm Pickup'}</button></div>{picked&&<p className="picked-time"><CheckCircle2 size={15}/> Picked {a.picked_at?new Date(a.picked_at).toLocaleString():''}</p>}</article>})}</div>
+    <div className="cards">{assignments.map(a=>{const s=a.shipments||{};const picked=a.pickup_status==='Picked';const coords=s.pickup_latitude!=null&&s.pickup_longitude!=null;const maps=coords?'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(s.pickup_latitude+','+s.pickup_longitude):'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(s.pickup_address||s.sender_city||'');return <article className="task-card" key={a.id}><div className="task-title"><div><span className="tracking">{s.tracking_id||'Shipment'}</span><h3>{s.sender_name||'Sender'}</h3></div><span className={'status '+(picked?'done':'pending')}>{picked?'Picked':'Assigned'}</span></div><div className="detail"><MapPin size={18}/><div><strong>Pickup location</strong><p>{s.pickup_address||s.sender_city||'Pickup address not provided'}</p>{s.pickup_instructions&&<p className="instructions">{s.pickup_instructions}</p>}</div></div>{s.sender_phone&&<a className="detail link-detail" href={'tel:'+s.sender_phone}><Phone size={18}/><div><strong>Contact sender</strong><p>{s.sender_phone}</p></div></a>}<div className="meta"><span>{s.cargo_type||'Cargo'}</span><span>{s.package_count||1} package(s)</span>{s.weight_kg!=null&&<span>{s.weight_kg} kg</span>}</div><div className="actions"><button className="secondary" disabled={busy===a.id} onClick={()=>updateWeight(a)}>Edit weight</button><a className="secondary" href={maps} target="_blank" rel="noreferrer"><Navigation size={17}/> Navigate</a><button className="primary" disabled={picked||busy===a.id} onClick={()=>confirmPickup(a)}>{picked?<><CheckCircle2 size={17}/> Pickup confirmed</>:busy===a.id?'Confirming…':'Confirm Pickup'}</button></div>{picked&&<p className="picked-time"><CheckCircle2 size={15}/> Picked {a.picked_at?new Date(a.picked_at).toLocaleString():''}</p>}</article>})}</div>
     <footer>Nyago Cargo · Driver pickup operations</footer></main>;
 }
 
