@@ -249,6 +249,20 @@ function App() {
     if (error) setMessage(error.message);
   }
 
+  async function changeShipmentWeight(s) {
+    const raw = window.prompt('Enter the measured shipment weight in kg:', String(s.weight_kg ?? ''));
+    if (raw === null) return;
+    const weight = Number(raw);
+    if (!Number.isFinite(weight) || weight <= 0) { setMessage('Enter a valid weight greater than zero.'); return; }
+    const reason = window.prompt('Reason for weight correction (required):', 'Physical weighing at warehouse');
+    if (!reason || !reason.trim()) { setMessage('A reason is required.'); return; }
+    setBusyId(s.id); setMessage('');
+    const { data, error } = await supabase.rpc('update_shipment_weight', { p_shipment_id: s.id, p_new_weight_kg: weight, p_reason: reason.trim() });
+    if (error) setMessage('Weight update failed: ' + error.message);
+    else { await refresh(); setMessage('Weight and shipment charges updated successfully.'); }
+    setBusyId(null);
+  }
+
   async function changeShipment(s, changes, note) {
     if (!supabase) return;
     setBusyId(s.id);
@@ -378,7 +392,7 @@ function App() {
               <tr key={s.id}>
                 <td><strong className="tracking">{s.tracking_id || '—'}</strong><small>{s.created_at ? new Date(s.created_at).toLocaleString() : '—'}</small></td>
                 <td><strong>{s.sender_name || '—'}</strong><small>{s.sender_city || 'Saudi Arabia'} → {s.receiver_city || '—'}, {s.receiver_country || ''}</small><small>Receiver: {s.receiver_name || '—'}</small></td>
-                <td><strong>{s.cargo_type || '—'}</strong><small>{s.weight_kg ?? '—'} kg · {s.package_count ?? '—'} package(s)</small><small>{s.total_cost_sar == null ? '—' : `${Number(s.total_cost_sar).toLocaleString()} SAR`}</small></td>
+                <td><strong>{s.cargo_type || '—'}</strong><small>{s.weight_kg ?? '—'} kg · {s.package_count ?? '—'} package(s)</small><small>{s.total_cost_sar == null ? '—' : `${Number(s.total_cost_sar).toLocaleString()} SAR`}</small><button type="button" className="status-select" disabled={busyId === s.id} onClick={() => changeShipmentWeight(s)}>Edit weight</button></td>
                 <td>{s.pickup_address ? <><strong>{s.pickup_address}</strong>{s.pickup_instructions && <small>Instructions: {s.pickup_instructions}</small>}{s.pickup_latitude != null && s.pickup_longitude != null && <small>GPS: {Number(s.pickup_latitude).toFixed(6)}, {Number(s.pickup_longitude).toFixed(6)}</small>}<a href={s.pickup_latitude != null && s.pickup_longitude != null ? `https://www.google.com/maps/dir/?api=1&destination=${s.pickup_latitude},${s.pickup_longitude}` : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.pickup_address)}`} target="_blank" rel="noreferrer">Open in Google Maps ↗</a></> : <small>Not provided on this booking</small>}</td>
                 <td><select aria-label={`Status for ${s.tracking_id}`} className="status-select" value={s.current_status || STATUSES[0]} disabled={busyId === s.id} onChange={e => changeShipment(s, { current_status: e.target.value }, `Status changed to ${e.target.value}`)}>{STATUSES.map(st => <option key={st}>{st}</option>)}</select></td>
                 <td><select aria-label={`Payment for ${s.tracking_id}`} className="status-select" value={s.payment_status || 'Unpaid'} disabled={busyId === s.id} onChange={e => changeShipment(s, { payment_status: e.target.value }, `Payment status changed to ${e.target.value}`)}>{PAYMENTS.map(p => <option key={p}>{p}</option>)}</select></td>
